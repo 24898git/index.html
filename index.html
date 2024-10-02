@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shoe Shopping Cart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: blue; }
+        .product { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; display: inline-block; width: 200px; vertical-align: top; }
+        .product img { width: 100%; height: 150px; object-fit: cover; }
+        #cart { border: 1px solid #ddd; padding: 10px; margin-top: 20px; }
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        input[type="email"], input[type="password"], input[type="tel"] { width: 100%; padding: 10px; margin: 10px 0; }
+        button { background-color: blue; color: white; border: none; padding: 10px 20px; cursor: pointer; }
+        .error { color: red; }
+        #cart-items { margin-bottom: 10px; }
+        .cart-item { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Shoe Shopping Cart</h1>
+    
+    <div id="products">
+        <!-- Products will be dynamically added here -->
+    </div>
+
+    <div id="cart">
+        <h2>Your Cart</h2>
+        <div id="cart-items"></div>
+        <div id="cart-total"></div>
+        <button id="checkout">Proceed to Checkout</button>
+    </div>
+
+    <div id="signin-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Sign In</h2>
+            <form id="signin-form">
+                <input type="email" id="email" placeholder="Email" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <div id="signin-error" class="error"></div>
+                <button type="submit">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="payment-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Choose Payment Method</h2>
+            <button class="payment-method" data-method="mpesa">M-Pesa</button>
+            <button class="payment-method" data-method="card">Credit/Debit Card</button>
+            <button class="payment-method" data-method="paypal">PayPal</button>
+        </div>
+    </div>
+
+    <div id="mpesa-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>M-Pesa Payment</h2>
+            <form id="mpesa-form">
+                <input type="tel" id="phone-number" placeholder="Enter M-Pesa number" required>
+                <button type="submit">Pay</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="mpesa-pin-modal" class="modal">
+        <div class="modal-content">
+            <h2>M-Pesa PIN</h2>
+            <p>Please check your phone for the M-Pesa toolkit and enter your M-Pesa PIN to complete the payment.</p>
+            <button id="mpesa-ok">OK</button>
+        </div>
+    </div>
+
+    <script>
+        const shoes = [
+            { id: 1, name: "Running Shoes", price: 5000, image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff" },
+            { id: 2, name: "Casual Sneakers", price: 3500, image: "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77" },
+            { id: 3, name: "Formal Shoes", price: 6000, image: "https://images.unsplash.com/photo-1614252369475-531eba835eb1" },
+            { id: 4, name: "Sports Shoes", price: 4500, image: "https://images.unsplash.com/photo-1562183241-b937e95585b6" },
+            { id: 5, name: "Sandals", price: 2000, image: "https://images.unsplash.com/photo-1603487742131-4160ec999306" },
+            { id: 6, name: "Boots", price: 7000, image: "https://images.unsplash.com/photo-1608256246200-53e635b5b65f" },
+            { id: 7, name: "Loafers", price: 4000, image: "https://images.unsplash.com/photo-1582897085656-c636d006a246" },
+            { id: 8, name: "Slippers", price: 1500, image: "https://images.unsplash.com/photo-1545526758-437b12399e2b" },
+            { id: 9, name: "High Heels", price: 5500, image: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2" },
+            { id: 10, name: "Canvas Shoes", price: 3000, image: "https://images.unsplash.com/photo-1625680017826-3eda785bace5" }
+        ];
+
+        const cart = [];
+
+        function displayProducts() {
+            const productsDiv = document.getElementById('products');
+            shoes.forEach(shoe => {
+                const productDiv = document.createElement('div');
+                productDiv.className = 'product';
+                productDiv.innerHTML = `
+                    <img src="${shoe.image}" alt="${shoe.name}">
+                    <h3>${shoe.name}</h3>
+                    <p>KSh ${shoe.price}</p>
+                    <button class="add-to-cart" data-id="${shoe.id}">Add to Cart</button>
+                `;
+                productsDiv.appendChild(productDiv);
+            });
+        }
+
+        function updateCart() {
+            const cartItems = document.getElementById('cart-items');
+            const cartTotal = document.getElementById('cart-total');
+            cartItems.innerHTML = '';
+            let total = 0;
+            cart.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'cart-item';
+                itemDiv.innerHTML = `
+                    <span>${item.name}</span>
+                    <span>KSh ${item.price}</span>
+                `;
+                cartItems.appendChild(itemDiv);
+                total += item.price;
+            });
+            cartTotal.textContent = `Total: KSh ${total}`;
+        }
+
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('add-to-cart')) {
+                const shoeId = parseInt(e.target.getAttribute('data-id'));
+                const shoe = shoes.find(s => s.id === shoeId);
+                if (shoe) {
+                    cart.push(shoe);
+                    updateCart();
+                    alert(`${shoe.name} added to cart!`);
+                }
+            }
+        });
+
+        document.getElementById('signin-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('signin-error');
+
+            if (!isValidEmail(email)) {
+                errorDiv.textContent = 'Please enter a valid email address.';
+                return;
+            }
+
+            if (password.length < 6) {
+                errorDiv.textContent = 'Password must be at least 6 characters long.';
+                return;
+            }
+
+            document.getElementById('signin-modal').style.display = 'none';
+            alert('Signed in successfully!');
+            document.getElementById('payment-modal').style.display = 'block';
+        });
+
+        function isValidEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        document.getElementById('checkout').addEventListener('click', function() {
+            if (cart.length === 0) {
+                alert('Your cart is empty. Please add items before checking out.');
+            } else {
+                document.getElementById('signin-modal').style.display = 'block';
+            }
+        });
+
+        document.querySelectorAll('.payment-method').forEach(button => {
+            button.addEventListener('click', function() {
+                const method = this.getAttribute('data-method');
+                if (method === 'mpesa') {
+                    document.getElementById('payment-modal').style.display = 'none';
+                    document.getElementById('mpesa-modal').style.display = 'block';
+                } else {
+                    alert(`Processing payment with ${method}. Thank you for your purchase!`);
+                    document.getElementById('payment-modal').style.display = 'none';
+                    cart.length = 0;
+                    updateCart();
+                }
+            });
+        });
+
+        document.getElementById('mpesa-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            document.getElementById('mpesa-modal').style.display = 'none';
+            document.getElementById('mpesa-pin-modal').style.display = 'block';
+        });
+
+        document.getElementById('mpesa-ok').addEventListener('click', function() {
+            document.getElementById('mpesa-pin-modal').style.display = 'none';
+            alert('Thank you for your purchase!');
+            cart.length = 0;
+            updateCart();
+        });
+
+        document.querySelectorAll('.close').forEach(closeBtn => {
+            closeBtn.addEventListener('click', function() {
+                this.closest('.modal').style.display = 'none';
+            });
+        });
+
+        window.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                e.target.style.display = 'none';
+            }
+        });
+
+        displayProducts();
+        updateCart();
+    </script>
+</body>
+</html>
